@@ -15,9 +15,9 @@ digit [0-9]
 letter [a-zA-Z]
 underscore _
 
-integer [1-9]{digit}*
 identifier ({letter}|{underscore})({letter}|{underscore}|{digit})*
 string \".*\"
+integer [1-9]{digit}*
 
 %%
 \s+      // skip space

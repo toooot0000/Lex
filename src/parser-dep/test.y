@@ -26,6 +26,7 @@
 }
 
 %define api.token.prefix {TOK_}
+
 %token
   ASSIGN  "="
   MINUS   "-"
@@ -50,28 +51,41 @@
   FROM "FROM"
 ;
 
-%token <std::string> IDENTIFIER "identifier"  // This defines TOK_IDENTIFIER
+%token <int> IDENTIFIER "identifier"  // This defines TOK_IDENTIFIER
 %token <int> INTEGER "integer"                  // This defines TOK_NUMBER
 %token <std::string> STRING "string"
 %token EOF 0 "end of file"                    // This defines TOK_EOF with value 0
 
 %start stmt
+@ntmn <int> assign;
+@ntmn <int> expr;
 
 %%
 
 stmt :
   %empty        ;
+  ''
   | expr stmt   ;
+  ;
+
+
+assign :
+  IDENTIFIER '=' INTEGER    { 
+    $1 = $3; 
+    $$ = $3;
+    std::cout << "Assignment: " << $1 << " = " << "$3" << std::endl;
+  }
+  ;
 
 expr :
-  IDENTIFIER              ;
-  | expr "+" literal      ;
-  | expr "+" IDENTIFIER   ;
+  INTEGER             { $$ = $1; }
+  | IDENTIFIER        { $$ = $1; }
+  | expr '+' expr     
+  | expr '-' expr
+  | expr '*' expt
+  | expr '/' expt
+  ;
 
-
-literal:
-  INTEGER     ;
-  | STRING    ;
 
 
 
