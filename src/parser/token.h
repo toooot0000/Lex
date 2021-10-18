@@ -17,6 +17,7 @@ namespace Parser
             LITERAL,
             OPERATOR,
             PARENTHESIS,
+            END_OF_FILE,
         };
 
         enum Sub{

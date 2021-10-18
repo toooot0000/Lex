@@ -8,6 +8,8 @@
 namespace Parser
 {
     using namespace std;
+
+
     Lexer::Lexer(istream &in)
         : _input(in), _input_string(string())
     {}
@@ -192,6 +194,7 @@ namespace Parser
             
             case 'A' ... 'Z':
             case 'a' ... 'z':
+                i++;
                 break;
 
             case '0' ... '9':
@@ -204,7 +207,7 @@ namespace Parser
                     break;
                 
                 case TokenType::Main::WHITESPACE:
-
+                    
                     break;
 
                 default:
@@ -215,9 +218,8 @@ namespace Parser
                 break;
             }
         }
-
+        return ret; 
     }
-
 
 } // namespace Parser
 
