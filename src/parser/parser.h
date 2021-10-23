@@ -1,16 +1,19 @@
 #pragma once
 #include <iostream>
 #include <string>
-#include "token.h"
+#include "token.hpp"
 
 class AST;
 
-class Parser
+namespace Parser
 {
-public:
-    Parser() = default;
-    ~Parser() = default;
 
-    AST * parse();
+    class Parser
+    {
+    public:
+        Parser() = default;
+        ~Parser() = default;
 
-};
+        AST *parse();
+    };
+}

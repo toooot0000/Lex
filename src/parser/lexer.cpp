@@ -4,19 +4,17 @@
 #include <string>
 #include <vector>
 #include <stack>
+#include <regex>
 
 namespace Parser
 {
     using namespace std;
 
-
-    Lexer::Lexer(istream &in)
-        : _input(in), _input_string(string())
-    {}
-
-    Lexer::Lexer(const string &in)
-        : _input_string(in), _input(cin)
-    {}
+    Lexer::Lexer(string in)
+        : _input_string(in)
+    {
+        _indent_stack.push(0);
+    }
 
     vector<Token> Lexer::lex()
     {
@@ -25,202 +23,160 @@ namespace Parser
 
     vector<Token> Lexer::lex(const string &in)
     {
-        size_t i{0};
-        size_t cur_line{0};
-        size_t cur_col{0};
-
-        size_t indent_size{0};
-        stack<size_t> indent_stack({0});
-        
-
         vector<Token> ret;
-        Token curTok;
-        
-
-        while(i < in.size())
-        {
-            auto ch = in[i];
-            switch(ch)
-            {
-            case ' ':
-            {
-                switch (curTok.type)
-                {
-                case TokenType::SOF:
-                {
-                    cerr << "First line start with blank space" << endl;
-                    throw runtime_error("The first line start with blank space");
-                    break;
-                }
-                
-                case TokenType::NEWLINE:
-                {
-                    ret.emplace_back(move(curTok));
-                    curTok = Token();
-                    curTok.start_offset = i;
-
-                    size_t j = i;
-                    int tab_num = 0;
-                    while(j<in.size() && (in[j] == ' ' || in[j] == '\t'))
-                    {
-                        if(in[j] == '\t') tab_num ++ ; // replace tab to 4 white space
-                        j++;
-                        cur_col++;
-                    }
-                    curTok.end_offset = j;
-                    if(j < in.size() && in[j] == '\r' || in[j] == '\n')
-                    {
-                        curTok.type = TokenType::WHITESPACE;
-                    }
-                    else
-                    {
-                        auto last_indent = indent_stack.top();
-                        auto whitespace_num = j - i + tab_num * 3;
-
-                        if(whitespace_num > last_indent)
-                        {
-                            if(indent_size == 0)
-                                indent_size = whitespace_num;
-                            else if(indent_size + last_indent != whitespace_num)
-                                throw runtime_error("Wrong number of white space!");
-                            
-                            indent_stack.push(whitespace_num);
-
-                            curTok.type = TokenType::INDENT;
-                            ret.emplace_back(move(curTok));
-
-                            curTok = Token();
-                            curTok.type = TokenType::WHITESPACE;
-                            curTok.start_offset = j;
-                        }
-                        else if(whitespace_num == last_indent)
-                        {
-                            curTok.type = TokenType::WHITESPACE;
-                            curTok.end_offset = j;
-                        }
-                        else
-                        {
-                            while(indent_stack.top() > whitespace_num)
-                            {
-                                indent_stack.pop();
-                                curTok.type = TokenType::DEDENT;
-                                ret.emplace_back(move(curTok));
-                                curTok = Token();
-                            }
-                            curTok.type = TokenType::WHITESPACE;
-                            curTok.start_offset = j;
-                            if(indent_stack.top() != whitespace_num)
-                                throw runtime_error("Wrong Indent!");
-
-                        }
-                    }
-                    i = j;
-                    break;
-                }
-
-                case TokenType::WHITESPACE:
-                {
-                    i++;
-                    cur_col++;
-                    break;
-                }
-                
-                default:
-                {
-                    curTok.end_offset = i;
-                    ret.emplace_back(move(curTok));
-                    curTok = make_token(TokenType::WHITESPACE, i);
-                    i++;
-                    cur_col++;
-                    break;
-                }
-                }
-                break;
-            }
-                
-
-            case '\r':
-            case '\n':{
-                if(curTok.type != TokenType::SOF)
-                {
-                    if(curTok.type != TokenType::WHITESPACE)
-                        ret.emplace_back(move(curTok));
-                    curTok = make_token(TokenType::NEWLINE, i);
-                    curTok.text = ch;
-                }
-                cur_line++;
-                cur_col = 0;
-                i++;
-                break;
-            }
-            
-            case '(':
-            case ')':
-            case '[':
-            case ']':
-            case '{':
-            case '}':
-            {
-                if(curTok.type != TokenType::WHITESPACE)
-                {
-                    ret.emplace_back(move(curTok));
-                }
-                curTok = make_token(TokenType::PARENTHESIS, i);
-                curTok.text = ch;
-                i++;
-                cur_col++;
-                break;
-            }
-
-
-            case '=':
-            case ':':
-            case '.':
-            case '/':
-            case '*':
-            case '-':
-            case '+':
-            {
-                if(curTok.type != TokenType::WHITESPACE)
-                {
-                    ret.emplace_back(move(curTok));
-                }
-                curTok = make_token(TokenType::OPERATOR, i);
-                curTok.text = ch;
-                i++;
-                cur_col++;
-                break;
-            }
-            
-            case 'A' ... 'Z':
-            case 'a' ... 'z':
-                i++;
-                break;
-
-            case '0' ... '9':
-                switch (curTok.type)
-                {
-                case TokenType::Main::IDENTIFIER:
-                case TokenType::Main::LITERAL:
-                    curTok.text.append(1, ch);
-                    curTok.end_offset++;
-                    break;
-                
-                case TokenType::Main::WHITESPACE:
-                    
-                    break;
-
-                default:
-                    break;
-                }
-                i++;
-                cur_col++;
-                break;
-            }
-        }
-        return ret; 
+        return ret;
     }
 
+    Token Lexer::next()
+    {
+        Token ret = _cur_tok;
+        _cur_tok = peek();
+        if (_cur_tok.type == TokenType::DEDENT)
+        {
+            _indent_stack.pop();
+        }
+        _cur_ind = _cur_tok.end_offset;
+        return ret;
+    }
+
+    Token Lexer::peek()
+    {
+        Token next;
+        switch (_input_string[_cur_ind])
+        {
+        case ' ':
+            switch (_cur_tok.type)
+            {
+            case TokenType::NEWLINE:
+                next = handleIndent(_cur_ind);
+                break;
+
+            case TokenType::DEDENT:
+                next = handleDedent(_cur_ind);
+                break;
+
+            default:
+
+                break;
+            }
+            break;
+
+        case '\r':
+        case '\n':
+            next = make_token(TokenType::NEWLINE,
+                              _cur_ind,
+                              _cur_ind + 1,
+                              _cur_line + 1,
+                              0, "\n");
+            break;
+
+        case '_':
+        case 'A' ... 'Z':
+        case 'a' ... 'z':
+            next = handleIdentifier(_cur_ind);
+            break;
+
+        default:
+            break;
+        }
+        return next;
+    }
+
+    Token Lexer::handleIndent(size_t start_ind)
+    {
+        Token next;
+        int i = start_ind;
+        while (i < _input_string.size() && _input_string[i] == ' ')
+        {
+            i++;
+        }
+        int num_blankspace = i - start_ind;
+        if (i < _input_string.size() && (_input_string[i] == '\n' || _input_string[i] == '\r'))
+        {
+            next = make_token(TokenType::NEWLINE,
+                              start_ind,
+                              i,
+                              _cur_tok.line_num + 1,
+                              0, "\n");
+        }
+        else if (num_blankspace > _indent_stack.top())
+        {
+            if (_indent_size == 0)
+            {
+                _indent_size = num_blankspace;
+            }
+            if (num_blankspace % _indent_size != 0)
+            {
+                // send error
+                throw runtime_error("Wrong indent size!");
+            }
+            next = make_token(TokenType::INDENT,
+                              start_ind,
+                              i,
+                              _cur_tok.line_num,
+                              _cur_tok.col_num + num_blankspace);
+        }
+        else if (num_blankspace == _indent_stack.top())
+        {
+            next = handleIdentifier(i);
+        }
+        else
+        {
+            next = make_token(TokenType::DEDENT,
+                              start_ind,
+                              start_ind,
+                              _cur_tok.line_num,
+                              _cur_tok.col_num);
+        }
+
+        return next;
+    }
+
+    Token Lexer::handleDedent(size_t start_ind)
+    {
+        Token next;
+        int i = start_ind;
+        while (i < _input_string.size() && _input_string[i] == ' ')
+        {
+            i++;
+        }
+        int num_blankspace = i - start_ind;
+        if (num_blankspace > _indent_stack.top())
+        {
+            throw runtime_error("Wrong dedent size!");
+        }
+        else if (num_blankspace == _indent_stack.top())
+        {
+            next = handleIdentifier(i);
+        }
+        else
+        {
+            next = make_token(TokenType::DEDENT,
+                              start_ind,
+                              start_ind,
+                              _cur_tok.line_num,
+                              _cur_tok.col_num);
+        }
+
+        return next;
+    }
+
+    Token Lexer::handleIdentifier(size_t start_ind)
+    {
+        Token next = make_token(TokenType::IDENTIFIER, start_ind, start_ind + 1, _cur_line, _cur_col, string(1, _input_string[start_ind]));
+        int i = start_ind + 1;
+        regex pattern("[a-zA-Z_][a-zA-Z0-9_]*");
+        while (i < _input_string.size() && regex_match(next.text + _input_string[i], pattern))
+        {
+            next.text.append(1, _input_string[i]);
+            i++;
+        }
+        next.end_offset = i;
+        return next;
+    }
+
+    inline bool Lexer::reachEnd() const
+    {
+        return _cur_ind >= _input_string.size();
+    }
 } // namespace Parser
-
-
