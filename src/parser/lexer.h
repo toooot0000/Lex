@@ -48,8 +48,6 @@ namespace Parser{
         std::string _input_string;
 
         size_t _cur_ind{0};
-        size_t _cur_line{0};
-        size_t _cur_col{0};
 
         // Current Token
         Token _cur_tok;

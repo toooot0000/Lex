@@ -3,12 +3,17 @@
 #include <sstream>
 #include <iostream>
 #include <string>
+#include <stdexcept>
 #include "lexer.h"
 #include "token.hpp"
 
 std::string getContent(std::string &&filename)
 {
     std::ifstream ifs(filename, std::ifstream::in);
+    if (!ifs.is_open())
+    {
+        throw std::runtime_error("File Error: File not open!");
+    }
     std::stringstream ss;
     ss << ifs.rdbuf();
     std::string in = ss.str();
@@ -69,6 +74,21 @@ TEST_CASE("LexerLex", "[lexer]")
 TEST_CASE("LexerMixed", "[lexer]")
 {
     std::string in = getContent("test_lexer_mixedIdentifiers.in");
+    INFO(in);
+    Parser::Lexer lexer(in);
+    auto ret = lexer.lex();
+    CHECK(ret.size() > 0);
+
+    for (auto tk : ret)
+    {
+        UNSCOPED_INFO(tk.toString());
+    }
+    CHECK(false);
+}
+
+TEST_CASE("LexerMulti", "[lexer]")
+{
+    std::string in = getContent("test_lexer_multiIndents.in");
     INFO(in);
     Parser::Lexer lexer(in);
     auto ret = lexer.lex();

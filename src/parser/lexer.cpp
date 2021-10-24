@@ -103,7 +103,7 @@ namespace Parser
             next = make_token(TokenType::NEWLINE,
                               _cur_ind,
                               _cur_ind + 1,
-                              _cur_line + 1,
+                              _cur_tok.line_num + 1,
                               0, "\n");
             break;
 
@@ -229,8 +229,8 @@ namespace Parser
         Token next = make_token(TokenType::IDENTIFIER,
                                 start_ind,
                                 start_ind + 1,
-                                _cur_line,
-                                _cur_col,
+                                _cur_tok.line_num,
+                                _cur_tok.col_num,
                                 string(1, _input_string[start_ind]));
         size_t i = start_ind + 1;
         while (i < _input_string.size() && regex_match(next.text + _input_string[i], pattern))
@@ -239,6 +239,7 @@ namespace Parser
             i++;
         }
         next.end_offset = i;
+        next.col_num += i - start_ind;
         return next;
     }
 
