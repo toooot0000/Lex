@@ -10,8 +10,14 @@ namespace Parser
 {
     using namespace std;
 
-    Lexer::Lexer(string in)
+    Lexer::Lexer(string &in)
         : _input_string(in)
+    {
+        _indent_stack.push(0);
+    }
+
+    Lexer::Lexer(string &&in)
+        : _input_string(std::move(in))
     {
         _indent_stack.push(0);
     }
@@ -24,23 +30,50 @@ namespace Parser
     vector<Token> Lexer::lex(const string &in)
     {
         vector<Token> ret;
+        while (hasNext())
+        {
+            ret.emplace_back(next());
+        }
         return ret;
     }
 
     Token Lexer::next()
     {
-        Token ret = _cur_tok;
-        _cur_tok = peek();
-        if (_cur_tok.type == TokenType::DEDENT)
+        if (!hasNext())
         {
+            throw runtime_error("Lexer Error: Reaching end!");
+        }
+        Token ret = _cur_tok;
+        _cur_tok = extractNext();
+        switch (_cur_tok.type)
+        {
+        case TokenType::INDENT:
+            _indent_stack.push(_cur_tok.end_offset - _cur_tok.start_offset);
+            break;
+
+        case TokenType::DEDENT:
             _indent_stack.pop();
+            break;
+
+        default:
+            break;
         }
         _cur_ind = _cur_tok.end_offset;
         return ret;
     }
 
-    Token Lexer::peek()
+    Token Lexer::peek() const
     {
+        return getCurTok();
+    }
+
+    // PRE: hasNext();
+    Token Lexer::extractNext()
+    {
+        if (reachEnd())
+        {
+            return make_token(TokenType::END, -1, -1, -1, -1);
+        }
         Token next;
         switch (_input_string[_cur_ind])
         {
@@ -56,7 +89,11 @@ namespace Parser
                 break;
 
             default:
-
+                while (_cur_ind < _input_string.size() && _input_string[_cur_ind] == ' ')
+                {
+                    _cur_ind++;
+                }
+                return extractNext();
                 break;
             }
             break;
@@ -73,13 +110,38 @@ namespace Parser
         case '_':
         case 'A' ... 'Z':
         case 'a' ... 'z':
-            next = handleIdentifier(_cur_ind);
+            switch (_cur_tok.type)
+            {
+            case TokenType::NEWLINE:
+                if (_indent_stack.top() > 0)
+                {
+                    next = handleDedent(_cur_ind);
+                }
+                else
+                {
+                    next = handleIdentifier(_cur_ind);
+                }
+                break;
+
+            case TokenType::DEDENT:
+                next = handleDedent(_cur_ind);
+                break;
+
+            default:
+                next = handleIdentifier(_cur_ind);
+                break;
+            }
             break;
 
         default:
             break;
         }
         return next;
+    }
+
+    bool Lexer::hasNext()
+    {
+        return _cur_tok.type != TokenType::END;
     }
 
     Token Lexer::handleIndent(size_t start_ind)
@@ -163,9 +225,14 @@ namespace Parser
 
     Token Lexer::handleIdentifier(size_t start_ind)
     {
-        Token next = make_token(TokenType::IDENTIFIER, start_ind, start_ind + 1, _cur_line, _cur_col, string(1, _input_string[start_ind]));
-        int i = start_ind + 1;
         regex pattern("[a-zA-Z_][a-zA-Z0-9_]*");
+        Token next = make_token(TokenType::IDENTIFIER,
+                                start_ind,
+                                start_ind + 1,
+                                _cur_line,
+                                _cur_col,
+                                string(1, _input_string[start_ind]));
+        size_t i = start_ind + 1;
         while (i < _input_string.size() && regex_match(next.text + _input_string[i], pattern))
         {
             next.text.append(1, _input_string[i]);

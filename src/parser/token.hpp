@@ -1,6 +1,9 @@
 #pragma once
 
 #include <string>
+#include <iostream>
+#include <sstream>
+#include <unordered_map>
 
 // Token can only be moved to another place
 namespace Parser
@@ -18,7 +21,7 @@ namespace Parser
             LITERAL,
             OPERATOR,
             PARENTHESIS,
-            END_OF_FILE,
+            END,
         };
 
         enum Sub
@@ -36,6 +39,15 @@ namespace Parser
             CURLY_LEFT,
             CURLY_RIGHT,
         };
+
+        const std::unordered_map<Main, std::string> NAME_MAP = {
+            {Main::IDENTIFIER, "Identifier"},
+            {Main::INDENT, "Indent"},
+            {Main::DEDENT, "Dedent"},
+            {Main::OPERATOR, "Operator"},
+            {Main::NEWLINE, "Newline"},
+            {Main::END, "End"},
+            {Main::LITERAL, "Literal"}};
     }
 
     struct Token
@@ -64,7 +76,6 @@ namespace Parser
         {
             return *this = Token(other);
         };
-
         Token(Token &&other) noexcept
             : text(std::move(other.text)),
               type(other.type),
@@ -85,7 +96,21 @@ namespace Parser
             this->start_offset = other.start_offset;
             this->end_offset = other.end_offset;
             return *this;
-        };
+        }
+        std::string toString() const noexcept
+        {
+            std::stringstream ss;
+            ss << "Token(type:" << TokenType::NAME_MAP.at(type)
+               << ", text: " << text
+               << ", start: " << start_offset
+               << ", end: " << end_offset
+               << ", line: " << line_num
+               << ", col: "
+               << col_num << ")";
+            return ss.str();
+        }
+
+        friend std::ostream &operator<<(std::ostream &os, const Token &tk);
     };
 
     static Token make_token(TokenType::Main main_type, size_t start_pos, size_t end_pos, size_t line, size_t col, std::string text = "")
@@ -99,4 +124,10 @@ namespace Parser
         t.text = text;
         return t;
     }
+}
+
+static std::ostream &operator<<(std::ostream &os, const Parser::Token &tk)
+{
+    os << tk.toString();
+    return os;
 }
